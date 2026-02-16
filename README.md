@@ -24,7 +24,7 @@ Usage
 -----
 ```
 import NextLink from 'next/link';
-import { ContentCarousel } from '@fps4/component-ui';
+import { ContentCarousel, MarkdownRenderer } from '@fps4/component-ui';
 
 <ContentCarousel
   heading="Highlights"
@@ -37,6 +37,8 @@ import { ContentCarousel } from '@fps4/component-ui';
   ]}
   LinkComponent={NextLink}
 />
+
+<MarkdownRenderer preset="fps4-home" content="# Hello" />
 ```
 
 Framework-agnostic links
@@ -80,6 +82,14 @@ Component props (high level)
   - `items` array with `ctaLabel`, `ctaHref`, optional `icon`.
   - `onCopy()` fires after a successful copy-to-clipboard action.
   - `LinkComponent`, `getLinkProps` for routing.
+- MarkdownRenderer
+  - Base behavior: thin wrapper around `react-markdown` with passthrough props.
+  - Presets:
+    - `preset="fps4-home"` for FPS4 home markdown headings/lists/links with slug anchors.
+    - `preset="fps4-page"` for FPS4 page markdown typography/lists/links and YouTube image-embed mapping.
+  - `content` or `children` for markdown source text.
+  - `lang`, `fallbackLang`, `youtubeMap` are used by `fps4-page` for localized YouTube references.
+  - `components` and `rehypePlugins` can still be passed to extend or override preset behavior.
 
 Build
 -----
