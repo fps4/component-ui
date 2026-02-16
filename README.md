@@ -85,9 +85,10 @@ Component props (high level)
 - MarkdownRenderer
   - Base behavior: thin wrapper around `react-markdown` with passthrough props.
   - Presets:
+    - `preset="base"` (default)
     - `preset="fps4-home"` for FPS4 home markdown headings/lists/links with slug anchors.
     - `preset="fps4-page"` for FPS4 page markdown typography/lists/links and YouTube image-embed mapping.
-  - `content` or `children` for markdown source text.
+  - `content` or `children` for markdown source text (`content` takes precedence when both are provided).
   - `lang`, `fallbackLang`, `youtubeMap` are used by `fps4-page` for localized YouTube references.
   - `components` and `rehypePlugins` can still be passed to extend or override preset behavior.
 

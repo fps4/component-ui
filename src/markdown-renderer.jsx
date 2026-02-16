@@ -1,5 +1,7 @@
 'use client';
 
+import { Children, isValidElement, useEffect, useMemo } from 'react';
+
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import List from '@mui/material/List';
@@ -13,11 +15,38 @@ export const MARKDOWN_PRESETS = {
   FPS4_HOME: 'fps4-home',
   FPS4_PAGE: 'fps4-page',
 };
+const VALID_PRESETS = new Set(Object.values(MARKDOWN_PRESETS));
+const YOUTUBE_VIDEO_ID_REGEX = /^[\w-]{11}$/;
 
 const homeHeadingStyles = {
   h1: { margin: '2rem 0 1rem', fontSize: '2.25rem', fontWeight: 700, color: 'inherit' },
   h2: { margin: '2rem 0 1rem', fontSize: '1.5rem', fontWeight: 600, color: 'inherit' },
 };
+
+function hasNestedLink(children) {
+  let found = false;
+
+  Children.forEach(children, (child) => {
+    if (found || child == null) {
+      return;
+    }
+
+    if (!isValidElement(child)) {
+      return;
+    }
+
+    if (child.type === 'a' || child.type === Link) {
+      found = true;
+      return;
+    }
+
+    if (child.props?.children && hasNestedLink(child.props.children)) {
+      found = true;
+    }
+  });
+
+  return found;
+}
 
 function getHomeComponents() {
   return {
@@ -28,9 +57,10 @@ function getHomeComponents() {
     ),
     h1: ({ node, children, ...props }) => {
       const id = node?.properties?.id;
+      const canWrapWithAnchor = id && !hasNestedLink(children);
       return (
         <h1 id={id} style={homeHeadingStyles.h1} {...props}>
-          {id ? (
+          {canWrapWithAnchor ? (
             <a href={`#${id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
               {children}
             </a>
@@ -42,9 +72,10 @@ function getHomeComponents() {
     },
     h2: ({ node, children, ...props }) => {
       const id = node?.properties?.id;
+      const canWrapWithAnchor = id && !hasNestedLink(children);
       return (
         <h2 id={id} style={homeHeadingStyles.h2} {...props}>
-          {id ? (
+          {canWrapWithAnchor ? (
             <a href={`#${id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
               {children}
             </a>
@@ -129,8 +160,10 @@ function getPageComponents({ lang, fallbackLang, youtubeMap }) {
       if (isYouTube) {
         const videoId = resolveYouTubeId(src || '', lang, fallbackLang, youtubeMap);
         if (!videoId) return null;
+        if (!YOUTUBE_VIDEO_ID_REGEX.test(videoId)) return null;
 
         const videoSrc = `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
+        const videoTitle = src ? `YouTube video: ${String(src)}` : 'YouTube video';
         return (
           <Box sx={{ my: 3 }}>
             <Box sx={{ position: 'relative', width: '100%', maxWidth: 800, mx: 'auto', pt: '56.25%' }}>
@@ -138,7 +171,7 @@ function getPageComponents({ lang, fallbackLang, youtubeMap }) {
                 <Box
                   component="iframe"
                   src={videoSrc}
-                  title="YouTube video"
+                  title={videoTitle}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                   sx={{ border: 0, width: '100%', height: '100%' }}
@@ -185,12 +218,39 @@ export function MarkdownRenderer({
   youtubeMap = undefined,
   ...other
 }) {
-  const presetConfig = getPresetConfig({ preset, lang, fallbackLang, youtubeMap });
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      return;
+    }
+
+    if (!VALID_PRESETS.has(preset)) {
+      console.warn(
+        `[MarkdownRenderer] Unknown preset "${preset}". Falling back to "${MARKDOWN_PRESETS.BASE}".`
+      );
+    }
+
+    if (content !== undefined && children !== undefined) {
+      console.warn(
+        '[MarkdownRenderer] Both "content" and "children" were provided. "content" takes precedence.'
+      );
+    }
+  }, [preset, content, children]);
+
+  const presetConfig = useMemo(
+    () => getPresetConfig({ preset, lang, fallbackLang, youtubeMap }),
+    [preset, lang, fallbackLang, youtubeMap]
+  );
   const resolvedContent = content ?? children ?? '';
+  const mergedComponents = useMemo(() => {
+    if (presetConfig.components && components) {
+      return { ...presetConfig.components, ...components };
+    }
+    return components || presetConfig.components;
+  }, [presetConfig.components, components]);
 
   return (
     <ReactMarkdown
-      components={presetConfig.components ? { ...presetConfig.components, ...components } : components}
+      components={mergedComponents}
       rehypePlugins={rehypePlugins ?? presetConfig.rehypePlugins}
       {...other}
     >
